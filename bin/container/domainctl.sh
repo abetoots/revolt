@@ -126,13 +126,13 @@ del_domain(){
     if [ "${LSV}" = 'lsws' ]; then
         check_duplicate "vhDomain.*${DOMAIN}" ${LS_HTTPD_CONF}
         if [ "${CK_RESULT}" = '' ]; then
-            echo "# Domain non-exist! Check the ${LS_HTTPD_CONF} if you believe this is a mistake!"
+            echo "# Domain non-existent! Check the ${LS_HTTPD_CONF} if you believe this is a mistake!"
             exit 1
         fi
     elif [ "${LSV}" = 'openlitespeed' ]; then
         check_duplicate "member.*${DOMAIN}" ${OLS_HTTPD_CONF}
         if [ "${CK_RESULT}" = '' ]; then
-            echo "# Domain non-exist! Check the ${OLS_HTTPD_CONF} if you believe this is a mistake!"
+            echo "# Domain non-existent! Check the ${OLS_HTTPD_CONF} if you believe this is a mistake!"
             exit 1
         fi        
     fi
