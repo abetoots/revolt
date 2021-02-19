@@ -11,7 +11,7 @@ echow(){
 help_message(){
     echo -e "\033[1mOPTIONS\033[0m"
     echow '[Enter Your PASSWORD]'
-    echo "${EPACE}${EPACE}Example: webadmin.sh MY_SECURE_PASS, to update web admin password immediatly."
+    echo "${EPACE}${EPACE}Example: webadmin.sh MY_SECURE_PASS, to update web admin password immediately."
     echow '-R, --restart'
     echo "${EPACE}${EPACE}Will gracefully restart LiteSpeed Web Server."
     echow '-M, --mod-secure [enable|disable]'
