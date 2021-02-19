@@ -93,6 +93,9 @@ while [ ! -z "${1}" ]; do
         -[hH] | -help | --help)
             help_message 1
             ;;
+        -[aA] | -app | --app) shift
+			APP_NAME="${1}"
+			;;
         *) 
             help_message 1
             ;;              
