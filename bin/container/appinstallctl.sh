@@ -6,10 +6,13 @@ APP_NAME=''
 DOMAIN=''
 WWW_UID=''
 WWW_GID=''
-WP_CONST_CONF=''
+LS_CONST_CONF=''
+WP_CONTENT='wp-content'
+WP_INCLUDES='wp-includes'
+WP_THEME_DIR='wp-content/themes'
 PUB_IP=$(curl -s http://checkip.amazonaws.com)
 DB_HOST='mysql'
-PLUGINLIST="litespeed-cache.zip"
+PLUGINLIST="litespeed-cache"
 THEME='twentytwenty'
 EPACE='        '
 
@@ -78,18 +81,25 @@ get_db_pass(){
 }
 
 set_vh_docroot(){
+    if [ "$APP_NAME" = 'bedrock' ]; then 
+        WP_CONTENT="web/app"
+        WP_INCLUDES="web/wp/wp-includes"
+        WP_THEME_DIR="web/wp/wp-content/themes"
+    fi
+
 	if [ "${VHNAME}" != '' ]; then
 	    VH_ROOT="${DEFAULT_VH_ROOT}/${VHNAME}"
 	    VH_DOC_ROOT="${DEFAULT_VH_ROOT}/${VHNAME}/html"
-		WP_CONST_CONF="${VH_DOC_ROOT}/wp-content/plugins/litespeed-cache/data/const.default.ini"
+        LS_CONST_CONF="${VH_DOC_ROOT}/${WP_CONTENT}/plugins/litespeed-cache/data/const.default.ini"
 	elif [ -d ${DEFAULT_VH_ROOT}/${1}/html ]; then
 	    VH_ROOT="${DEFAULT_VH_ROOT}/${1}"
         VH_DOC_ROOT="${DEFAULT_VH_ROOT}/${1}/html"
-		WP_CONST_CONF="${VH_DOC_ROOT}/wp-content/plugins/litespeed-cache/data/const.default.ini"
+        LS_CONST_CONF="${VH_DOC_ROOT}/${WP_CONTENT}/plugins/litespeed-cache/data/const.default.ini"
 	else
-	    echo "${DEFAULT_VH_ROOT}/${1}/html does not exist, please add domain first! Abort!"
+	    echo "${DEFAULT_VH_ROOT}/${1}/html does not exist, please add domain first! Aborting!"
 		exit 1
-	fi	
+	fi
+  
 }
 
 check_sql_native(){
@@ -110,15 +120,25 @@ check_sql_native(){
 
 install_wp_plugin(){
     for PLUGIN in ${PLUGINLIST}; do
-        wget -q -P ${VH_DOC_ROOT}/wp-content/plugins/ https://downloads.wordpress.org/plugin/${PLUGIN}
+        wget -q -P ${VH_DOC_ROOT}/wp-content/plugins/ https://downloads.wordpress.org/plugin/${PLUGIN}.zip
         if [ ${?} = 0 ]; then
 		    ck_unzip
-            unzip -qq -o ${VH_DOC_ROOT}/wp-content/plugins/${PLUGIN} -d ${VH_DOC_ROOT}/wp-content/plugins/
+            unzip -qq -o ${VH_DOC_ROOT}/wp-content/plugins/${PLUGIN}.zip -d ${VH_DOC_ROOT}/wp-content/plugins/
         else
             echo "${PLUGINLIST} FAILED to download"
         fi
     done
     rm -f ${VH_DOC_ROOT}/wp-content/plugins/*.zip
+}
+
+install_wp_plugin_bedrock(){
+    for PLUGIN in ${PLUGINLIST}; do
+        composer require wpackagist-plugin/${PLUGIN}
+    done
+    composer update
+    if [  ${?} != 0 ]; then
+        echo "Composer failed to install the new packages. You can retry to install them manually."
+    fi
 }
 
 set_htaccess(){
@@ -140,7 +160,7 @@ EOM
 }
 
 get_theme_name(){
-    THEME_NAME=$(grep WP_DEFAULT_THEME ${VH_DOC_ROOT}/wp-includes/default-constants.php | grep -v '!' | awk -F "'" '{print $4}')
+    THEME_NAME=$(grep WP_DEFAULT_THEME ${VH_DOC_ROOT}/${WP_INCLUDES}/default-constants.php | grep -v '!' | awk -F "'" '{print $4}')
     echo "${THEME_NAME}" | grep 'twenty' >/dev/null 2>&1
     if [ ${?} = 0 ]; then
         THEME="${THEME_NAME}"
@@ -148,7 +168,7 @@ get_theme_name(){
 }
 
 set_lscache(){ 
-    cat << EOM > "${WP_CONST_CONF}" 
+    cat << EOM > "${LS_CONST_CONF}" 
 ;
 ; This is the predefined default LSCWP configuration file
 ;
@@ -540,10 +560,10 @@ filetype[0] = '.aac
 ; <------------ CDN Mapping Example END ------------------>
 EOM
 
-    if [ ! -f ${VH_DOC_ROOT}/wp-content/themes/${THEME}/functions.php.bk ]; then 
-        cp ${VH_DOC_ROOT}/wp-content/themes/${THEME}/functions.php ${VH_DOC_ROOT}/wp-content/themes/${THEME}/functions.php.bk
+    if [ ! -f ${VH_DOC_ROOT}/${WP_THEME_DIR}/${THEME}/functions.php.bk ]; then 
+        cp ${VH_DOC_ROOT}/${WP_THEME_DIR}/${THEME}/functions.php ${VH_DOC_ROOT}/${WP_THEME_DIR}/${THEME}/functions.php.bk
         ck_ed
-        ed ${VH_DOC_ROOT}/wp-content/themes/${THEME}/functions.php << END >>/dev/null 2>&1
+        ed ${VH_DOC_ROOT}/${WP_THEME_DIR}/${THEME}/functions.php << END >>/dev/null 2>&1
 2i
 require_once( WP_CONTENT_DIR.'/../wp-admin/includes/plugin.php' );
 \$path = 'litespeed-cache/litespeed-cache.php' ;
@@ -590,9 +610,40 @@ app_wordpress_dl(){
 			--allow-root \
 			--quiet
 	else
-	    echo 'wordpress already exist, abort!'
+	    echo "Wordpress already exists. Aborting!"
 		exit 1
 	fi
+}
+
+app_bedrock_dl(){
+    if [ ! -f "${VH_DOC_ROOT}/web/wp-config.php" ]; then
+        composer create-project roots/bedrock .
+    else
+	    echo "Wordpress Bedrock already exists. Aborting!"
+		exit 1
+	fi
+}
+
+app_bedrock_tools_dl(){
+    echo "Setting up tools for bedrock ..."
+    #TODO make sure these tools can only be executed by allowed users
+    #setup composer
+    if [[ $EUID > 0 ]]; then
+        #fail early when not running as root
+        echo "Please run as root"
+        exit 1 
+    else 
+    ck_unzip
+        if [ ! -f "/usr/local/bin/composer" ]; then 
+            curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+            if [ ${?} != 0 ]; then
+            echo "Failed to install composer. This is a crucial dependency for Bedrock projects. Aborting!"
+            exit 1
+            fi
+        else 
+            echo "Composer already exists ..."
+        fi
+    fi
 }
 
 change_owner(){
@@ -617,8 +668,18 @@ main(){
 		set_lscache
 		change_owner
 		exit 0
-	else
-		echo "APP: ${APP_NAME} not support, exit!"
+	elif [ "${APP_NAME}" = 'bedrock' ]; then
+        check_sql_native
+        app_bedrock_tools_dl
+        app_bedrock_dl
+        install_wp_plugin_bedrock
+        set_htaccess
+        get_theme_name
+        set_lscache
+        change_owner
+        exit 0
+    else
+		echo "APP: ${APP_NAME} not supported, exit!"
 		exit 1	
 	fi
 }
