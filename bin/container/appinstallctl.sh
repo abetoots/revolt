@@ -10,6 +10,7 @@ LS_CONST_CONF=''
 WP_CONTENT='wp-content'
 WP_INCLUDES='wp-includes'
 WP_THEME_DIR='wp-content/themes'
+HTACCESS_DIR=''
 PUB_IP=$(curl -s http://checkip.amazonaws.com)
 DB_HOST='mysql'
 PLUGINLIST="litespeed-cache"
@@ -81,24 +82,27 @@ get_db_pass(){
 }
 
 set_vh_docroot(){
-    if [ "$APP_NAME" = 'bedrock' ]; then 
-        WP_CONTENT="web/app"
-        WP_INCLUDES="web/wp/wp-includes"
-        WP_THEME_DIR="web/wp/wp-content/themes"
-    fi
-
 	if [ "${VHNAME}" != '' ]; then
 	    VH_ROOT="${DEFAULT_VH_ROOT}/${VHNAME}"
 	    VH_DOC_ROOT="${DEFAULT_VH_ROOT}/${VHNAME}/html"
         LS_CONST_CONF="${VH_DOC_ROOT}/${WP_CONTENT}/plugins/litespeed-cache/data/const.default.ini"
+        HTACCESS_DIR="${VH_DOC_ROOT}"
 	elif [ -d ${DEFAULT_VH_ROOT}/${1}/html ]; then
 	    VH_ROOT="${DEFAULT_VH_ROOT}/${1}"
         VH_DOC_ROOT="${DEFAULT_VH_ROOT}/${1}/html"
         LS_CONST_CONF="${VH_DOC_ROOT}/${WP_CONTENT}/plugins/litespeed-cache/data/const.default.ini"
+        HTACCESS_DIR="${VH_DOC_ROOT}"
 	else
 	    echo "${DEFAULT_VH_ROOT}/${1}/html does not exist, please add domain first! Aborting!"
 		exit 1
 	fi
+
+    if [ "$APP_NAME" = 'bedrock' ]; then 
+        WP_CONTENT="web/app"
+        WP_INCLUDES="web/wp/wp-includes"
+        WP_THEME_DIR="web/wp/wp-content/themes"
+        HTACCESS_DIR="${VH_DOC_ROOT}/web"
+    fi
   
 }
 
@@ -142,10 +146,10 @@ install_wp_plugin_bedrock(){
 }
 
 set_htaccess(){
-    if [ ! -f ${VH_DOC_ROOT}/.htaccess ]; then 
-        touch ${VH_DOC_ROOT}/.htaccess
+    if [ ! -f ${HTACCESS_DIR}/.htaccess ]; then 
+        touch ${HTACCESS_DIR}/.htaccess
     fi   
-    cat << EOM > ${VH_DOC_ROOT}/.htaccess
+    cat << EOM > ${HTACCESS_DIR}/.htaccess
 # BEGIN WordPress
 <IfModule mod_rewrite.c>
 RewriteEngine On
