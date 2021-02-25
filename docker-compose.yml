@@ -14,7 +14,14 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     restart: always
   litespeed:
-    image: litespeedtech/openlitespeed:${OLS_VERSION}-${PHP_VERSION}
+    image: litespeedtech/openlitespeed:${OLS_VERSION}-${LSPHP_VERSION}
+    #https://hub.docker.com/r/litespeedtech/openlitespeed "Customization"
+    build:
+      context: ./custom
+      args: 
+        ols_version: ${OLS_VERSION}
+        lsphp_version: ${LSPHP_VERSION}
+        php_version: ${PHP_VERSION}
     env_file:
       - .env
     volumes:
