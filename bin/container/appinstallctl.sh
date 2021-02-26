@@ -82,6 +82,12 @@ get_db_pass(){
 }
 
 set_vh_docroot(){
+    if [ "$APP_NAME" = 'bedrock' ]; then 
+        WP_CONTENT="web/app"
+        WP_INCLUDES="web/wp/wp-includes"
+        WP_THEME_DIR="web/wp/wp-content/themes"
+    fi
+
 	if [ "${VHNAME}" != '' ]; then
 	    VH_ROOT="${DEFAULT_VH_ROOT}/${VHNAME}"
 	    VH_DOC_ROOT="${DEFAULT_VH_ROOT}/${VHNAME}/html"
@@ -98,9 +104,6 @@ set_vh_docroot(){
 	fi
 
     if [ "$APP_NAME" = 'bedrock' ]; then 
-        WP_CONTENT="web/app"
-        WP_INCLUDES="web/wp/wp-includes"
-        WP_THEME_DIR="web/wp/wp-content/themes"
         HTACCESS_DIR="${VH_DOC_ROOT}/web"
     fi
   
